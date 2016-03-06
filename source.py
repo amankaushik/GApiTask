@@ -7,22 +7,45 @@ import configparser
 import sys
 import StringIO
 
-
-
-sys.stdout = open('output.log', 'w')
-sys.stdout = sys.__stdout__
 app = Flask(__name__)
 api = Api(app)
 
 ALLOWED_EXTENSIONS = ['csv']
 
+class Product():
+	def __init__(self, prodDetail):
+		self.storeId = prodDetail[0]
+		self.articleId = prodDetail[1]
+		self.price = prodDetail[2]
+		self.availability = prodDetail[3]
+		self.stock = prodDetail[4] 
+		self.validCode = self.checkValidCode(prodDetail)	
 
+	def checkValidCode(self, prodDetail):
+		if not prodDetail[0] or not prodDetail[1]:
+			return 3
+		if not prodDetail[2] or not prodDetail[3] or not prodDetail[4]:
+			return 4
+		else:
+			return 1
+
+def makeListofProducts(content):
+		contentList = content.split("\n")
+		prodList = []
+		f = open('output.txt', 'w')
+		#f.write(content)
+		for prodDetail in contentList:
+			f.write(str(prodDetail.split(',')))
+			f.write("\n")
+			prodList.append(Product(prodDetail.split(',')))
+		f.close()
+		return prodList	
 
 
 def validateFileAndUpload(csVFile):
 	if validate(csVFile):
+		return {'isValid': 'Yes'}
 		#uploadToFTP(csVFile)
-		pass
 	else:
 		return {'Error': 'Wrong Format'}
 
@@ -37,9 +60,11 @@ def uploadToFTP(csVFile):
 	session.quit()
 
 def validate(csVFile):
-	#content = StringIO.StringIO()
 	content = csVFile.getvalue()
-	print content
+	prodList = makeListofProducts(content)
+	for product in prodList:
+		if product.validCode != 1:
+			return False
 	return True
 
 
@@ -69,10 +94,10 @@ class UploadFile(Resource):
 		csVFile = StringIO.StringIO()
 		file.save(csVFile)
 
-		validateFileAndUpload(csVFile)
+		return validateFileAndUpload(csVFile)
 		
 
-		return {'filename': file.filename}
+		#return {'filename': file.filename}
         # Upload to FTP
         #uploadToFTP(file)
 
@@ -85,10 +110,7 @@ class Check(Resource):
         return {'this': 'working'}
 
 
-#api.add_resource(Check, '/')
 api.add_resource(UploadFile, '/upload')
-#parser = reqparse.RequestParser()
-#parser.add_argument('filename', required = True, type = FileStorage)
 
 if __name__ == '__main__':
     app.run(debug = True)
